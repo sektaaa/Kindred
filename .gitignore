@@ -1,0 +1,23 @@
+# node_modules/
+# .next/
+# .env
+# .env.local
+# *.log
+# .DS_Store
+# coverage/
+
+
+node_modules/
+**/node_modules/
+
+.env
+.env.*
+!.env.example
+
+.next/
+dist/
+build/
+*.log
+.DS_Store
+coverage/
+!**/.env.example
