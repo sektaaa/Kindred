@@ -34,10 +34,30 @@ const requireAuth = asyncHandler(async (req, res, next) => {
 
   const user = await User.findById(payload.sub);
   if (!user) throw new AppError('Account no longer exists', 401);
+  if (user.status === 'suspended') throw new AppError('This account has been suspended', 403);
+
+  // Activity tracking for analytics, written at most once every 5 minutes per user.
+  const now = Date.now();
+  if (!user.lastActiveAt || now - user.lastActiveAt.getTime() > 5 * 60 * 1000) {
+    user.lastActiveAt = new Date(now);
+    await User.updateOne({ _id: user._id }, { $set: { lastActiveAt: user.lastActiveAt } });
+  }
 
   req.user = user;
   next();
 });
+
+// Authorization: admin panel routes.
+const requireAdmin = (req, res, next) => {
+  if (req.user?.role !== 'admin') return next(new AppError('Admins only', 403));
+  next();
+};
+
+// Regular dating features are for members, not admin accounts.
+const requireMember = (req, res, next) => {
+  if (req.user?.role === 'admin') return next(new AppError('Admin accounts cannot use dating features', 403));
+  next();
+};
 
 // Authorization: discover / like / chat need a finished profile.
 const requireCompleteProfile = (req, res, next) => {
@@ -47,4 +67,4 @@ const requireCompleteProfile = (req, res, next) => {
   next();
 };
 
-module.exports = { requireAuth, requireCompleteProfile, signToken, setAuthCookie, COOKIE_NAME };
+module.exports = { requireAuth, requireCompleteProfile, requireAdmin, requireMember, signToken, setAuthCookie, COOKIE_NAME };

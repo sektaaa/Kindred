@@ -130,6 +130,46 @@ All responses: `{ success: true, data }` or `{ success: false, message, details?
 
 ---
 
+## Admin panel (`/admin`)
+
+**Default admin** — created automatically when the server starts and no admin exists (and again after `npm run seed`):
+
+| Email | Password |
+|---|---|
+| `admin@kindred.app` | `Admin@12345` |
+
+Change these with `ADMIN_EMAIL`, `ADMIN_PASSWORD` and `ADMIN_NAME` in `server/.env` **before the first start**, and change the password from **Admins → My admin profile** after logging in. In local development the login page also shows an **admin** demo button; it is hidden in production builds.
+
+> `npm run seed` wipes every user, including extra admins, then recreates the default admin.
+
+| Page | What admins can do |
+|---|---|
+| **Dashboard** | Total, new and active users; profile completion; premium conversion; likes, matches, conversations and messages; daily charts for 7/30/90 days; breakdowns by community, plan, goal and city; recent admin activity |
+| **Users** | Search by name, email or city; filter by community, plan, status and profile; sort; per-user likes, matches and messages |
+| **User detail** | Per-user analytics (likes sent/received, matches, conversations, compatibility, completeness, blocks, 30-day swipe chart, match list); edit email, community, plan, status and every profile field; reset password; suspend or re-activate; make admin or remove admin; delete (cascades likes, matches, messages); change history |
+| **Admins** | Edit own name and password; create new admins; list all admins and who added them |
+| **Events** | Create, feature and delete community events |
+| **Activity log** | Every admin change: who, what, when, before → after |
+
+**Guard rails:** an admin can't suspend, demote or delete their own account, and the last admin can't be removed. Suspended users can't log in and disappear from Discover. Admin accounts don't appear in Discover or analytics user counts and can't use dating features.
+
+**Privacy:** admins see message *counts*, never message content, and the password hash is never returned.
+
+| Method | Endpoint (all need role `admin`) | Description |
+|---|---|---|
+| GET | `/api/admin/stats/overview` | Platform totals, rates and breakdowns |
+| GET | `/api/admin/stats/timeseries?days=30` | Daily signups, likes, matches, messages |
+| GET | `/api/admin/users?search=&community=&plan=&status=&profile=&sort=&page=&limit=` | User list with per-user counts |
+| GET / PATCH / DELETE | `/api/admin/users/:id` | User detail + stats + history / edit / delete |
+| POST | `/api/admin/users/:id/password` | `{ password }` |
+| POST | `/api/admin/users/:id/role` | `{ role: 'user' \| 'admin' }` |
+| GET / POST | `/api/admin/admins` | List admins / create `{ name, email, password }` |
+| PATCH | `/api/admin/me` | `{ name?, currentPassword?, newPassword? }` |
+| GET / POST / PATCH / DELETE | `/api/admin/events[/:id]` | Event management |
+| GET | `/api/admin/logs?limit=50` | Audit log |
+
+---
+
 ## Matching algorithm (`server/src/services/matchingService.js`)
 
 One MongoDB aggregation pipeline:

@@ -89,7 +89,9 @@ test('full journey: signup -> profile -> discover -> like -> match -> chat', asy
   assert.equal(res.body.data.matched, false);
 
   const b = agent();
-  const otherEmail = `${top.profile.name.toLowerCase()}.neurodiverse@kindred.app`;
+  const otherEmail = top.profile.name.startsWith('Demo')
+    ? 'demo.neurodiverse@kindred.app'
+    : `${top.profile.name.toLowerCase()}.neurodiverse@kindred.app`;
   res = await b.post('/api/auth/login').send({ email: otherEmail, password: 'Demo1234' });
   assert.equal(res.status, 200);
   const myId = (await a.get('/api/auth/me')).body.data.user.id;
@@ -113,7 +115,8 @@ test('full journey: signup -> profile -> discover -> like -> match -> chat', asy
 
   // A third user cannot read this chat
   const c = agent();
-  await c.post('/api/auth/login').send({ email: 'demo.neurodiverse@kindred.app', password: 'Demo1234' });
+  const outsider = otherEmail === 'demo.neurodiverse@kindred.app' ? 'sana.neurodiverse@kindred.app' : 'demo.neurodiverse@kindred.app';
+  await c.post('/api/auth/login').send({ email: outsider, password: 'Demo1234' });
   res = await c.get(`/api/matches/${matchId}/messages`);
   assert.equal(res.status, 404);
 

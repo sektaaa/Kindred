@@ -7,7 +7,7 @@ import CommunityBadge from './CommunityBadge';
 import CalmToggle from './CalmToggle';
 import Heart from './Heart';
 
-const LINKS = [
+const MEMBER_LINKS = [
   { href: '/discover', label: 'Discover' },
   { href: '/matches', label: 'Matches' },
   { href: '/events', label: 'Events' },
@@ -18,6 +18,7 @@ export default function Navbar() {
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
+  const isAdmin = user?.role === 'admin';
 
   const onLogout = async () => {
     await logout();
@@ -27,19 +28,22 @@ export default function Navbar() {
   return (
     <header className="nav">
       <nav className="nav-inner" aria-label="Main">
-        <Link href={user ? '/discover' : '/'} className="brand">
+        <Link href={!user ? '/' : isAdmin ? '/admin' : '/discover'} className="brand">
           <Heart size={26} className="logo-heart" />
           <span>Kindred</span>
         </Link>
-        {user && <CommunityBadge community={user.community} />}
+        {user && !isAdmin && <CommunityBadge community={user.community} />}
+        {isAdmin && <span className="community admin-badge">Admin</span>}
         <div className="nav-links">
           {user ? (
             <>
-              {LINKS.map((l) => (
-                <Link key={l.href} href={l.href} className={pathname.startsWith(l.href) ? 'active' : ''}>
-                  {l.label}
-                </Link>
-              ))}
+              {!isAdmin &&
+                MEMBER_LINKS.map((l) => (
+                  <Link key={l.href} href={l.href} className={pathname.startsWith(l.href) ? 'active' : ''}>
+                    {l.label}
+                  </Link>
+                ))}
+              {isAdmin && <span className="small muted">{user.profile?.name || user.email}</span>}
               <CalmToggle />
               <button className="linklike" onClick={onLogout}>Log out</button>
             </>

@@ -33,6 +33,8 @@ exports.getProfile = async (req, res) => {
   const other = await User.findById(req.params.id);
   const blocked =
     !other ||
+    other.role === 'admin' ||
+    other.status === 'suspended' ||
     other.community !== req.user.community ||
     other.blocked.some((id) => id.equals(req.user._id)) ||
     req.user.blocked.some((id) => id.equals(other._id));

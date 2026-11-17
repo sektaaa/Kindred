@@ -26,7 +26,17 @@ const userSchema = new mongoose.Schema(
   {
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true, select: false },
-    community: { type: String, enum: COMMUNITY_KEYS, required: true, index: true },
+    // Admins manage the platform and don't date, so they don't need a community.
+    role: { type: String, enum: ['user', 'admin'], default: 'user', index: true },
+    status: { type: String, enum: ['active', 'suspended'], default: 'active', index: true },
+    community: {
+      type: String,
+      enum: COMMUNITY_KEYS,
+      required: function () { return this.role !== 'admin'; },
+      index: true,
+    },
+    lastActiveAt: { type: Date },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     profile: { type: profileSchema, default: () => ({}) },
     profileComplete: { type: Boolean, default: false },
     // Privacy-by-design: identity tags (e.g. "ADHD", "sober 1-5 years") are sensitive.

@@ -30,6 +30,8 @@ function privateUser(user) {
   return {
     id: String(user._id),
     email: user.email,
+    role: user.role || 'user',
+    status: user.status || 'active',
     community: user.community,
     plan: user.plan,
     profileComplete: user.profileComplete,
@@ -38,4 +40,16 @@ function privateUser(user) {
   };
 }
 
-module.exports = { publicProfile, privateUser, canSeeIdentityTags };
+// What the admin panel sees about an account. Still never the password hash
+// and never message content: admins get counts, not private conversations.
+function adminUser(user) {
+  return {
+    ...privateUser(user),
+    blockedCount: (user.blocked || []).length,
+    lastActiveAt: user.lastActiveAt || null,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  };
+}
+
+module.exports = { publicProfile, privateUser, adminUser, canSeeIdentityTags };

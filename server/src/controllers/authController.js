@@ -23,6 +23,7 @@ exports.login = async (req, res) => {
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
     throw new AppError('Incorrect email or password', 401);
   }
+  if (user.status === 'suspended') throw new AppError('This account has been suspended', 403);
   const token = signToken(user._id);
   setAuthCookie(res, token);
   res.json({ success: true, data: { user: privateUser(user), token } });

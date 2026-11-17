@@ -21,7 +21,8 @@ export default function LoginPage() {
     setBusy(true);
     try {
       const user = await login(email, password);
-      router.push(user.profileComplete ? '/discover' : '/profile?onboarding=1');
+      if (user.role === 'admin') router.push('/admin');
+      else router.push(user.profileComplete ? '/discover' : '/profile?onboarding=1');
     } catch (err) {
       setError(errorText(err));
     } finally {
@@ -55,6 +56,12 @@ export default function LoginPage() {
               {d}
             </button>
           ))}
+          {/* Only in local development, so the default admin login is never advertised on a live site. */}
+          {process.env.NODE_ENV !== 'production' && (
+            <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => doLogin('admin@kindred.app', 'Admin@12345')}>
+              admin
+            </button>
+          )}
         </div>
       </div>
 

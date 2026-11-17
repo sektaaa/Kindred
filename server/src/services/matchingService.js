@@ -35,6 +35,8 @@ async function getDiscoverFeed(me, { limit = 20 } = {}) {
       $match: {
         community: me.community,
         profileComplete: true,
+        role: { $ne: 'admin' },
+        status: { $ne: 'suspended' },
         _id: { $nin: excluded },
         blocked: { $ne: me._id },
       },

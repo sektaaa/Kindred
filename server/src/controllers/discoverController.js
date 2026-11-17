@@ -27,7 +27,7 @@ exports.swipe = async (req, res) => {
   if (String(me._id) === toUser) throw new AppError('You cannot swipe on yourself', 400);
 
   const target = await User.findById(toUser);
-  if (!target || target.community !== me.community || !target.profileComplete) {
+  if (!target || target.role === 'admin' || target.status === 'suspended' || target.community !== me.community || !target.profileComplete) {
     throw new AppError('Profile not found', 404);
   }
   if (target.blocked.some((id) => id.equals(me._id))) throw new AppError('Profile not found', 404);

@@ -8,8 +8,47 @@ const Like = require('../models/Like');
 const Match = require('../models/Match');
 const Message = require('../models/Message');
 const Event = require('../models/Event');
+const AdminLog = require('../models/AdminLog');
+const ensureDefaultAdmin = require('../services/bootstrapAdmin');
 
 const PASSWORD = 'Demo1234';
+const DAY = 24 * 60 * 60 * 1000;
+const daysAgo = (d, hour = 12) => new Date(Date.now() - d * DAY - hour * 60 * 60 * 1000);
+
+// Backdates documents so the analytics dashboard shows realistic history.
+async function backdate(Model, id, date) {
+  await Model.collection.updateOne({ _id: id }, { $set: { createdAt: date, updatedAt: date } });
+}
+
+// Gives each community a little history: one mutual match with a short chat,
+// plus one one-way like. Demo accounts are left untouched for live demos.
+async function seedHistory(list, community) {
+  const [a, , c, d] = list;
+  const matchedAt = daysAgo(6);
+  await Like.create([
+    { fromUser: c._id, toUser: d._id, action: 'like' },
+    { fromUser: d._id, toUser: c._id, action: 'like' },
+    { fromUser: a._id, toUser: c._id, action: 'like' },
+  ]);
+  const match = await Match.create({
+    users: [c._id, d._id].sort(),
+    pairKey: Match.pairKeyFor(c._id, d._id),
+    compatibility: 64,
+    lastMessageAt: daysAgo(4),
+  });
+  await backdate(Match, match._id, matchedAt);
+  const lines = [
+    [c, 'Hi! Loved your profile.'],
+    [d, 'Thank you! Yours too. How is your week going?'],
+    [c, 'Good! Found a nice spot for the weekend, want to join?'],
+    [d, 'Sounds lovely, yes.'],
+  ];
+  for (const [i, [who, text]] of lines.entries()) {
+    const msg = await Message.create({ match: match._id, sender: who._id, text });
+    await backdate(Message, msg._id, daysAgo(5 - i * 0.3));
+  }
+  return community;
+}
 
 const people = {
   sober: [
@@ -57,7 +96,7 @@ const events = [
 async function seed({ disconnect = true } = {}) {
   if (mongoose.connection.readyState !== 1) await mongoose.connect(env.mongoUri);
 
-  await Promise.all([User.deleteMany({}), Like.deleteMany({}), Match.deleteMany({}), Message.deleteMany({}), Event.deleteMany({})]);
+  await Promise.all([User.deleteMany({}), Like.deleteMany({}), Match.deleteMany({}), Message.deleteMany({}), Event.deleteMany({}), AdminLog.deleteMany({})]);
   const passwordHash = await bcrypt.hash(PASSWORD, 10);
 
   for (const [community, list] of Object.entries(people)) {
@@ -69,6 +108,7 @@ async function seed({ disconnect = true } = {}) {
       profileComplete: true,
     });
 
+    const created = [];
     for (const [i, p] of list.entries()) {
       const { likesDemo, ...profile } = p;
       const u = await User.create({
@@ -77,17 +117,26 @@ async function seed({ disconnect = true } = {}) {
         community,
         profile,
         profileComplete: true,
+        plan: i === 0 ? 'premium' : 'free',
         visibility: { identityTags: i % 2 === 0 ? 'everyone' : 'matches' },
       });
+      created.push(u);
+      // Spread signups over the last month and activity over the last week and a half.
+      const offset = (created.length * 7 + community.length * 3) % 28;
+      await backdate(User, u._id, daysAgo(offset + 2));
+      await User.collection.updateOne({ _id: u._id }, { $set: { lastActiveAt: daysAgo(offset % 10, 2) } });
       if (likesDemo) await Like.create({ fromUser: u._id, toUser: demo._id, action: 'like' });
     }
+    await seedHistory(created, community);
   }
 
   await Event.insertMany(events);
+  await ensureDefaultAdmin();
 
-  const counts = { users: await User.countDocuments(), likes: await Like.countDocuments(), events: await Event.countDocuments() };
+  const counts = { users: await User.countDocuments(), likes: await Like.countDocuments(), matches: await Match.countDocuments(), events: await Event.countDocuments() };
   console.log('Seeded:', counts);
   console.log(`Demo logins (password ${PASSWORD}): demo.sober@kindred.app, demo.eco@kindred.app, demo.neurodiverse@kindred.app`);
+  console.log(`Admin login: ${env.adminEmail} / ${env.adminPassword}`);
 
   if (disconnect) await mongoose.disconnect();
   return counts;
